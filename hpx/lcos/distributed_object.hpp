@@ -341,7 +341,7 @@ namespace hpx { namespace lcos {
                 }
                 else
                 {
-                    this->~distributed_object();
+                    distributed_object();
                 }
             }
         }
@@ -549,7 +549,7 @@ namespace hpx { namespace lcos {
                 }
                 else
                 {
-                    this->~distributed_object();
+                    distributed_object();
                 }
             }
         }
