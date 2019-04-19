@@ -12,6 +12,19 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 option(HPX_PP_WITH_TESTS "Include tests for pp" On)
 
+include(HPX_AddDefinitions)
+include(HPX_Option)
+
+hpx_option(HPX_PP_WITH_COMPATIBILITY_HEADERS
+  BOOL
+  "Do not warn if old header files are being used"
+  ON ADVANCED
+  CATEGORY "Modules")
+
+if(HPX_PP_WITH_COMPATIBILITY_HEADERS)
+  hpx_add_config_define_namespace(DEFINE HPX_PP_HAVE_COMPATIBILITY_HEADERS NAMESPACE PP)
+endif()
+
 message(STATUS "pp: Configuring")
 
 set(headers
@@ -45,5 +58,13 @@ install(
   COMPONENT pp)
 
 add_subdirectory(tests)
+
+write_config_defines_file(
+  NAMESPACE PP
+  FILENAME "${CMAKE_BINARY_DIR}/hpx/pp/config/defines.hpp")
+
+write_config_defines_file(
+  NAMESPACE PP
+  FILENAME "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/hpx/pp/config/defines.hpp")
 
 message(STATUS "pp: Configuring done")
