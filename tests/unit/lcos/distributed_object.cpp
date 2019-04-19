@@ -6,13 +6,13 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 ///////////////////////////////////////////////////////////////////////////
-/// This is a dist_object example using HPX component.
+/// This is a distributed_object example using HPX component.
 ///
 /// A distributed object is a single logical object partitioned across
 /// a set of localities. (A locality is a single node in a cluster or a
 /// NUMA domian in a SMP machine.) Each locality constructs an instance of
-/// dist_object<T>, where a value of type T represents the value of this
-/// this locality's instance value. Once dist_object<T> is conctructed, it
+/// distributed_object<T>, where a value of type T represents the value of this
+/// this locality's instance value. Once distributed_object<T> is conctructed, it
 /// has a universal name which can be used on any locality in the given
 /// localities to locate the resident instance.
 
@@ -25,7 +25,7 @@
 #include <hpx/lcos/when_all.hpp>
 #include <hpx/util/lightweight_test.hpp>
 
-#include <hpx/include/dist_object.hpp>
+#include <hpx/include/distributed_object.hpp>
 #include <boost/range/irange.hpp>
 
 #include <algorithm>
@@ -38,36 +38,36 @@
 #include <utility>
 #include <vector>
 
-REGISTER_DIST_OBJECT_PART(int);
+REGISTER_DISTRIBUTED_OBJECT_PART(int);
 
 using myVectorInt = std::vector<int>;
-REGISTER_DIST_OBJECT_PART(myVectorInt);
+REGISTER_DISTRIBUTED_OBJECT_PART(myVectorInt);
 using myMatrixInt = std::vector<std::vector<int>>;
-REGISTER_DIST_OBJECT_PART(myMatrixInt);
+REGISTER_DISTRIBUTED_OBJECT_PART(myMatrixInt);
 
-REGISTER_DIST_OBJECT_PART(double);
+REGISTER_DISTRIBUTED_OBJECT_PART(double);
 using myVectorDouble = std::vector<double>;
-REGISTER_DIST_OBJECT_PART(myVectorDouble);
+REGISTER_DISTRIBUTED_OBJECT_PART(myVectorDouble);
 using myMatrixDouble = std::vector<std::vector<double>>;
-REGISTER_DIST_OBJECT_PART(myMatrixDouble);
+REGISTER_DISTRIBUTED_OBJECT_PART(myMatrixDouble);
 using myVectorDoubleConst = std::vector<double> const;
-REGISTER_DIST_OBJECT_PART(myVectorDoubleConst);
+REGISTER_DISTRIBUTED_OBJECT_PART(myVectorDoubleConst);
 
 using intRef = int&;
-REGISTER_DIST_OBJECT_PART(intRef);
+REGISTER_DISTRIBUTED_OBJECT_PART(intRef);
 using myVectorIntRef = std::vector<int>&;
-REGISTER_DIST_OBJECT_PART(myVectorIntRef);
+REGISTER_DISTRIBUTED_OBJECT_PART(myVectorIntRef);
 using myVectorDoubleConstRef = std::vector<double> const&;
-REGISTER_DIST_OBJECT_PART(myVectorDoubleConstRef);
+REGISTER_DISTRIBUTED_OBJECT_PART(myVectorDoubleConstRef);
 
-void test_dist_object_int()
+void test_distributed_object_int()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     // Construct a distrtibuted object of type int in all provided localities
     // User needs to provide the distributed object with a unique basename
     // and data for construction. The unique basename string enables HPX
     // register and retrive the distributed object.
-    dist_object<int> dist_int(
+    distributed_object<int> dist_int(
         "a_unique_name_string", hpx::get_locality_id() + 42);
     // If there exists more than 2 (and include) localities, we are able to
     // asychronously fetch a future of a copy of the instance of this
@@ -80,13 +80,13 @@ void test_dist_object_int()
 
 void test_accumulation_reduce_to_locality0()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     int expect_res = 0, target_res = 0;
     int num_localities = hpx::find_all_localities().size();
     int cur_locality = hpx::get_locality_id();
 
     // declare a distributed object on every locality
-    dist_object<int> dist_int("dist_int", cur_locality);
+    distributed_object<int> dist_int("dist_int", cur_locality);
 
     // create a barrier and wait for the distributed object to be constructed in
     // all localities
@@ -117,14 +117,14 @@ void test_accumulation_reduce_to_locality0()
 
 void test_accumulation_reduce_to_locality0_parallel()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     std::atomic<int> expect_res = 0;
     int target_res = 0;
     int num_localities = hpx::find_all_localities().size();
     int cur_locality = hpx::get_locality_id();
 
     // declare a distributed object on every locality
-    dist_object<int> dist_int("dist_int", cur_locality);
+    distributed_object<int> dist_int("dist_int", cur_locality);
 
     // create a barrier and wait for the distributed object to be constructed in
     // all localities
@@ -152,9 +152,9 @@ void test_accumulation_reduce_to_locality0_parallel()
     }
 }
 
-void test_dist_object_vector()
+void test_distributed_object_vector()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     // define vector based on the locality that it is running
     int here_ = static_cast<int>(hpx::get_locality_id());
     int len = 10;
@@ -164,10 +164,10 @@ void test_dist_object_vector()
     std::vector<int> rhs(len, here_);
     std::vector<int> res(len, 0);
 
-    // construct a dist_object with vector<int> type
-    dist_object<std::vector<int>> LHS("lhs_vec", lhs);
-    dist_object<std::vector<int>> RHS("rhs_vec", rhs);
-    dist_object<std::vector<int>> RES("res_vec", res);
+    // construct a distributed_object with vector<int> type
+    distributed_object<std::vector<int>> LHS("lhs_vec", lhs);
+    distributed_object<std::vector<int>> RHS("rhs_vec", rhs);
+    distributed_object<std::vector<int>> RES("res_vec", res);
 
     // construct a gobal barrier
     hpx::lcos::barrier b_dist_vector("b_dist_vector",
@@ -175,7 +175,7 @@ void test_dist_object_vector()
         hpx::get_locality_id());
     b_dist_vector.wait();
 
-    // perform element-wise addition between dist_objects
+    // perform element-wise addition between distributed_objects
     for (int i = 0; i < len; i++)
     {
         (*RES)[i] = (*LHS)[i] + (*RHS)[i];
@@ -190,10 +190,10 @@ void test_dist_object_vector()
     HPX_TEST_EQ(RES->size(), static_cast<size_t>(len));
 }
 
-// element-wise addition for vector<vector<double>> for dist_object
-void test_dist_object_matrix()
+// element-wise addition for vector<vector<double>> for distributed_object
+void test_distributed_object_matrix()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     double val = 42.0 + static_cast<double>(hpx::get_locality_id());
     int rows = 5, cols = 5;
 
@@ -201,9 +201,9 @@ void test_dist_object_matrix()
     myMatrixDouble rhs(rows, std::vector<double>(cols, val));
     myMatrixDouble res(rows, std::vector<double>(cols, 0));
 
-    dist_object<myMatrixDouble> LHS("m1", lhs);
-    dist_object<myMatrixDouble> RHS("m2", rhs);
-    dist_object<myMatrixDouble> RES("m3", res);
+    distributed_object<myMatrixDouble> LHS("m1", lhs);
+    distributed_object<myMatrixDouble> RHS("m2", rhs);
+    distributed_object<myMatrixDouble> RES("m3", res);
 
     for (int i = 0; i < rows; i++)
     {
@@ -236,9 +236,9 @@ void test_dist_object_matrix()
     }
 }
 
-void test_dist_object_matrix_all_to_all()
+void test_distributed_object_matrix_all_to_all()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     double val = 42.0 + static_cast<double>(hpx::get_locality_id());
     int rows = 5, cols = 5;
 
@@ -248,9 +248,9 @@ void test_dist_object_matrix_all_to_all()
 
     typedef hpx::lcos::construction_type c_t;
 
-    dist_object<myMatrixDouble, c_t::All_to_All> LHS("m1", lhs);
-    dist_object<myMatrixDouble, c_t::All_to_All> RHS("m2", rhs);
-    dist_object<myMatrixDouble, c_t::All_to_All> RES("m3", res);
+    distributed_object<myMatrixDouble, c_t::All_to_All> LHS("m1", lhs);
+    distributed_object<myMatrixDouble, c_t::All_to_All> RHS("m2", rhs);
+    distributed_object<myMatrixDouble, c_t::All_to_All> RES("m3", res);
 
     for (int i = 0; i < rows; i++)
     {
@@ -284,9 +284,9 @@ void test_dist_object_matrix_all_to_all()
     }
 }
 
-void test_dist_object_matrix_mo()
+void test_distributed_object_matrix_mo()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     int val = 42 + static_cast<int>(hpx::get_locality_id());
     int rows = 5, cols = 5;
 
@@ -296,9 +296,9 @@ void test_dist_object_matrix_mo()
 
     typedef hpx::lcos::construction_type c_t;
 
-    dist_object<myMatrixInt, c_t::Meta_Object> M1("M1_meta", m1);
-    dist_object<myMatrixInt, c_t::Meta_Object> M2("M2_meta", m2);
-    dist_object<myMatrixInt, c_t::Meta_Object> M3("M3_meta", m3);
+    distributed_object<myMatrixInt, c_t::Meta_Object> M1("M1_meta", m1);
+    distributed_object<myMatrixInt, c_t::Meta_Object> M2("M2_meta", m2);
+    distributed_object<myMatrixInt, c_t::Meta_Object> M3("M3_meta", m3);
 
     for (int i = 0; i < rows; i++)
     {
@@ -322,15 +322,15 @@ void test_dist_object_matrix_mo()
     HPX_TEST_EQ(M3->size(), static_cast<size_t>(rows));
 }
 
-void test_dist_object_ref()
+void test_distributed_object_ref()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     size_t n = 10;
     int val = 2;
 
     int val_update = 42;
     myVectorInt vec1(n, val);
-    dist_object<myVectorInt&> dist_vec("vec1", vec1);
+    distributed_object<myVectorInt&> dist_vec("vec1", vec1);
 
     vec1[2] = val_update;
 
@@ -338,19 +338,19 @@ void test_dist_object_ref()
     HPX_TEST_EQ(dist_vec->size(), static_cast<size_t>(n));
 }
 
-void test_dist_object_const_ref()
+void test_distributed_object_const_ref()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     size_t n = 10;
     int val = 2;
 
     myVectorDoubleConst vec1(n, val);
-    dist_object<myVectorDoubleConstRef> dist_vec("vec1", vec1);
+    distributed_object<myVectorDoubleConstRef> dist_vec("vec1", vec1);
 }
 
-void test_dist_object_matrix_mul()
+void test_distributed_object_matrix_mul()
 {
-    using hpx::lcos::dist_object;
+    using hpx::lcos::distributed_object;
     size_t cols = 5;    // Decide how big the matrix should be
 
     size_t num_locs = hpx::find_all_localities().size();
@@ -414,11 +414,11 @@ void test_dist_object_matrix_mul()
 
     typedef hpx::lcos::construction_type c_t;
 
-    dist_object<myMatrixInt, c_t::Meta_Object> M1(
+    distributed_object<myMatrixInt, c_t::Meta_Object> M1(
         "M1_meta_mat_mul", all_data_m1[here]);
-    dist_object<myMatrixInt, c_t::Meta_Object> M2(
+    distributed_object<myMatrixInt, c_t::Meta_Object> M2(
         "M2_meta_mat_mul", all_data_m2[here]);
-    dist_object<myMatrixInt, c_t::Meta_Object> M3(
+    distributed_object<myMatrixInt, c_t::Meta_Object> M3(
         "M3_meta_mat_mul", here_data_m3);
 
     // Actual matrix multiplication. For non-local values, get the data
@@ -483,16 +483,16 @@ void test_dist_object_matrix_mul()
 int hpx_main()
 {
     {
-        test_dist_object_int();
+        test_distributed_object_int();
         test_accumulation_reduce_to_locality0_parallel();
         test_accumulation_reduce_to_locality0();
-        test_dist_object_vector();
-        test_dist_object_matrix();
-        test_dist_object_matrix_all_to_all();
-        test_dist_object_matrix_mo();
-        test_dist_object_matrix_mul();
-        test_dist_object_ref();
-        test_dist_object_const_ref();
+        test_distributed_object_vector();
+        test_distributed_object_matrix();
+        test_distributed_object_matrix_all_to_all();
+        test_distributed_object_matrix_mo();
+        test_distributed_object_matrix_mul();
+        test_distributed_object_ref();
+        test_distributed_object_const_ref();
     }
     hpx::finalize();
     return hpx::util::report_errors();

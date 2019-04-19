@@ -5,10 +5,10 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-/// \file lcos/dist_object.hpp
+/// \file lcos/distributed_object.hpp
 
-#ifndef HPX_LCOS_DIST_OBJECT_HPP
-#define HPX_LCOS_DIST_OBJECT_HPP
+#ifndef HPX_LCOS_DISTRIBUTED_OBJECT_HPP
+#define HPX_LCOS_DISTRIBUTED_OBJECT_HPP
 
 #include <hpx/include/components.hpp>
 #include <hpx/include/lcos.hpp>
@@ -28,20 +28,20 @@
 /// \cond NOINTERNAL
 namespace hpx { namespace lcos { namespace server {
     template <typename T>
-    class dist_object_part
+    class distributed_object_part
       : public hpx::components::locking_hook<
-            hpx::components::component_base<dist_object_part<T>>>
+            hpx::components::component_base<distributed_object_part<T>>>
     {
     public:
         typedef T data_type;
-        dist_object_part() {}
+        distributed_object_part() {}
 
-        dist_object_part(data_type const& data)
+        distributed_object_part(data_type const& data)
           : data_(data)
         {
         }
 
-        dist_object_part(data_type&& data)
+        distributed_object_part(data_type&& data)
           : data_(std::move(data))
         {
         }
@@ -71,22 +71,22 @@ namespace hpx { namespace lcos { namespace server {
             return data_;
         }
 
-        HPX_DEFINE_COMPONENT_ACTION(dist_object_part, fetch);
+        HPX_DEFINE_COMPONENT_ACTION(distributed_object_part, fetch);
 
     private:
         data_type data_;
     };
 
     template <typename T>
-    class dist_object_part<T&>
+    class distributed_object_part<T&>
       : public hpx::components::locking_hook<
-            hpx::components::component_base<dist_object_part<T&>>>
+            hpx::components::component_base<distributed_object_part<T&>>>
     {
     public:
         typedef T& data_type;
-        dist_object_part() {}
+        distributed_object_part() {}
 
-        dist_object_part(data_type data)
+        distributed_object_part(data_type data)
           : data_(data)
         {
         }
@@ -116,28 +116,28 @@ namespace hpx { namespace lcos { namespace server {
             return data_;
         }
 
-        HPX_DEFINE_COMPONENT_ACTION(dist_object_part, fetch);
+        HPX_DEFINE_COMPONENT_ACTION(distributed_object_part, fetch);
 
     private:
         data_type data_;
     };
 }}}
 
-#define REGISTER_DIST_OBJECT_PART_DECLARATION(type)                            \
+#define REGISTER_DISTRIBUTED_OBJECT_PART_DECLARATION(type)                     \
     HPX_REGISTER_ACTION_DECLARATION(                                           \
-        hpx::lcos::server::dist_object_part<type>::fetch_action,               \
-        HPX_PP_CAT(__dist_object_part_fetch_action_, type));
+        hpx::lcos::server::distributed_object_part<type>::fetch_action,        \
+        HPX_PP_CAT(__distributed_object_part_fetch_action_, type));
 
 /**/
 
-#define REGISTER_DIST_OBJECT_PART(type)                                        \
+#define REGISTER_DISTRIBUTED_OBJECT_PART(type)                                 \
     HPX_REGISTER_ACTION(                                                       \
-        hpx::lcos::server::dist_object_part<type>::fetch_action,               \
-        HPX_PP_CAT(__dist_object_part_fetch_action_, type));                   \
+        hpx::lcos::server::distributed_object_part<type>::fetch_action,        \
+        HPX_PP_CAT(__distributed_object_part_fetch_action_, type));            \
     typedef ::hpx::components::component<                                      \
-        hpx::lcos::server::dist_object_part<type>>                             \
-        HPX_PP_CAT(__dist_object_part_, type);                                 \
-    HPX_REGISTER_COMPONENT(HPX_PP_CAT(__dist_object_part_, type))              \
+        hpx::lcos::server::distributed_object_part<type>>                      \
+        HPX_PP_CAT(__distributed_object_part_, type);                          \
+    HPX_REGISTER_COMPONENT(HPX_PP_CAT(__distributed_object_part_, type))       \
     /**/
 
 namespace hpx { namespace lcos {
@@ -239,54 +239,55 @@ namespace hpx { namespace lcos {
     };
 }}
 /// \endcond
-// The front end for the dist_object itself. Essentially wraps actions for
+// The front end for the distributed_object itself. Essentially wraps actions for
 // the server, and stores information locally about the localities/servers
 // that it needs to know about
 namespace hpx { namespace lcos {
-    /// The dist_object is a single logical object partitioned over a set of
+    /// The distributed_object is a single logical object partitioned over a set of
     /// localities/nodes/machines, where every locality shares the same global
     /// name locality for the distributed object (i.e. a universal name), but
     /// owns its local value. In other words, local data of the distributed
     /// object can be different, but they share access to one another's data
     /// globally.
     template <typename T, construction_type C = construction_type::All_to_All>
-    class dist_object
-      : hpx::components::client_base<dist_object<T>,
-            server::dist_object_part<T>>
+    class distributed_object
+      : hpx::components::client_base<distributed_object<T>,
+            server::distributed_object_part<T>>
     {
-        typedef hpx::components::client_base<dist_object<T>,
-            server::dist_object_part<T>>
+        typedef hpx::components::client_base<distributed_object<T>,
+            server::distributed_object_part<T>>
             base_type;
 
-        typedef typename server::dist_object_part<T>::data_type data_type;
+        typedef
+            typename server::distributed_object_part<T>::data_type data_type;
 
     private:
         template <typename Arg>
         static hpx::future<hpx::id_type> create_server(Arg&& value)
         {
-            return hpx::local_new<server::dist_object_part<T>>(
+            return hpx::local_new<server::distributed_object_part<T>>(
                 std::forward<Arg>(value));
         }
 
     public:
-        /// Creates a dist_object in every locality
+        /// Creates a distributed_object in every locality
         ///
-        /// A dist_object \a base_name is created through default constructor.
-        dist_object() {}
+        /// A distributed_object \a base_name is created through default constructor.
+        distributed_object() {}
 
-        /// Creates a dist_object in every locality with a given base_name string,
+        /// Creates a distributed_object in every locality with a given base_name string,
         /// data, and a type and construction_type in the template parameters
         ///
         /// \param construction_type The construction_type in the template parameters
         /// accepts either Meta_Object, and it is set to All_to_All by defalut
         /// The Meta_Object option provides meta object registration in the root
         /// locality and meta object is essentailly a table that can find the
-        /// instances of dist_object in all localities. The All_to_All option only
-        /// locally holds the client and server of the dist_object.
-        /// \param base_name The name of the dist_object, which should be a unique
+        /// instances of distributed_object in all localities. The All_to_All option only
+        /// locally holds the client and server of the distributed_object.
+        /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
-        /// \param data The data of the type T of the dist_object
-        dist_object(std::string base, data_type const& data)
+        /// \param data The data of the type T of the distributed_object
+        distributed_object(std::string base, data_type const& data)
           : base_type(create_server(data))
           , base_(base)
         {
@@ -304,32 +305,32 @@ namespace hpx { namespace lcos {
             }
         }
 
-        /// Creates a dist_object in every locality with a given base_name string,
+        /// Creates a distributed_object in every locality with a given base_name string,
         /// data. The construction_type in the template parameter is set to
         /// All_to_All option by default.
         ///
-        /// \param base_name The name of the dist_object, which should be a unique
+        /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
-        /// \param data The data of the type T of the dist_object
-        dist_object(std::string base, data_type&& data)
+        /// \param data The data of the type T of the distributed_object
+        distributed_object(std::string base, data_type&& data)
           : base_type(create_server(std::move(data)))
           , base_(base)
         {
             basename_registration_helper(base);
         }
         /// \cond NOINTERNAL
-        dist_object(hpx::future<hpx::id_type>&& id)
+        distributed_object(hpx::future<hpx::id_type>&& id)
           : base_type(std::move(id))
         {
         }
 
-        dist_object(hpx::id_type&& id)
+        distributed_object(hpx::id_type&& id)
           : base_type(std::move(id))
         {
         }
         /// \endcond
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type const& operator*() const
         {
             HPX_ASSERT(this->get_id());
@@ -337,7 +338,7 @@ namespace hpx { namespace lcos {
             return **ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type& operator*()
         {
             HPX_ASSERT(this->get_id());
@@ -345,7 +346,7 @@ namespace hpx { namespace lcos {
             return **ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type const* operator->() const
         {
             HPX_ASSERT(this->get_id());
@@ -353,7 +354,7 @@ namespace hpx { namespace lcos {
             return &**ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type* operator->()
         {
             HPX_ASSERT(this->get_id());
@@ -362,28 +363,28 @@ namespace hpx { namespace lcos {
         }
 
         /// Asynchronously returns a future of a copy of the instance of this
-        /// dist_object associated with the given locality index. The locality
-        /// index must be a valid locality ID with this dist_object.
+        /// distributed_object associated with the given locality index. The locality
+        /// index must be a valid locality ID with this distributed_object.
         hpx::future<data_type> fetch(int idx)
         {
             /// \cond NOINTERNAL
             HPX_ASSERT(this->get_id());
             hpx::id_type lookup = get_basename_helper(idx);
-            typedef
-                typename server::dist_object_part<T>::fetch_action action_type;
+            typedef typename server::distributed_object_part<T>::fetch_action
+                action_type;
             return hpx::async<action_type>(lookup);
             /// \endcond
         }
         /// \cond NOINTERNAL
     private:
-        mutable std::shared_ptr<server::dist_object_part<T>> ptr;
+        mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
         std::string base_unpacked;
         void ensure_ptr() const
         {
             if (!ptr)
             {
-                ptr = hpx::get_ptr<server::dist_object_part<T>>(
+                ptr = hpx::get_ptr<server::distributed_object_part<T>>(
                     hpx::launch::sync, this->get_id());
             }
         }
@@ -410,39 +411,40 @@ namespace hpx { namespace lcos {
         /// \endcond
     };
 
-    /// The dist_object is a single logical object partitioned over a set of
+    /// The distributed_object is a single logical object partitioned over a set of
     /// localities/nodes/machines, where every locality shares the same global
     /// name locality for the distributed object (i.e. a universal name), but
     /// owns its local value. In other words, local data of the distributed
     /// object can be different, but they share access to one another's data
     /// globally.
     template <typename T, construction_type C>
-    class dist_object<T&, C>
-      : hpx::components::client_base<dist_object<T&>,
-            server::dist_object_part<T&>>
+    class distributed_object<T&, C>
+      : hpx::components::client_base<distributed_object<T&>,
+            server::distributed_object_part<T&>>
     {
         /// \cond NOINTERNAL
-        typedef hpx::components::client_base<dist_object<T&>,
-            server::dist_object_part<T&>>
+        typedef hpx::components::client_base<distributed_object<T&>,
+            server::distributed_object_part<T&>>
             base_type;
 
-        typedef typename server::dist_object_part<T&>::data_type data_type;
+        typedef
+            typename server::distributed_object_part<T&>::data_type data_type;
 
     private:
         template <typename Arg>
         static hpx::future<hpx::id_type> create_server(Arg& value)
         {
-            return hpx::local_new<server::dist_object_part<T&>>(value);
+            return hpx::local_new<server::distributed_object_part<T&>>(value);
         }
         /// \endcond
     public:
-        /// Creates a dist_object in every locality
+        /// Creates a distributed_object in every locality
         ///
-        /// A dist_object \a base_name is created through default constructor.
-        dist_object() {}
+        /// A distributed_object \a base_name is created through default constructor.
+        distributed_object() {}
 
-        /// Creates a dist_object in every locality with a given base_name string,
-        /// data, and a construction_type. This constructor of the dist_object
+        /// Creates a distributed_object in every locality with a given base_name string,
+        /// data, and a construction_type. This constructor of the distributed_object
         /// wraps an existing local instance and thus is internally referring to
         /// the local instance.
         ///
@@ -450,12 +452,12 @@ namespace hpx { namespace lcos {
         /// accepts either Meta_Object, and it is set to All_to_All by defalut
         /// The Meta_Object option provides meta object registration in the root
         /// locality and meta object is essentailly a table that can find the
-        /// instances of dist_object in all localities. The All_to_All option only
-        /// locally holds the client and server of the dist_object.
-        /// \param base_name The name of the dist_object, which should be a unique
+        /// instances of distributed_object in all localities. The All_to_All option only
+        /// locally holds the client and server of the distributed_object.
+        /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
-        /// \param data The data of the type T of the dist_object
-        dist_object(std::string base, data_type data)
+        /// \param data The data of the type T of the distributed_object
+        distributed_object(std::string base, data_type data)
           : base_type(create_server(data))
           , base_(base)
         {
@@ -474,18 +476,18 @@ namespace hpx { namespace lcos {
         }
 
         /// \cond NOINTERNAL
-        dist_object(hpx::future<hpx::id_type>&& id)
+        distributed_object(hpx::future<hpx::id_type>&& id)
           : base_type(std::move(id))
         {
         }
 
-        dist_object(hpx::id_type&& id)
+        distributed_object(hpx::id_type&& id)
           : base_type(std::move(id))
         {
         }
         /// \endcond
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type const operator*() const
         {
             HPX_ASSERT(this->get_id());
@@ -493,7 +495,7 @@ namespace hpx { namespace lcos {
             return **ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         data_type operator*()
         {
             HPX_ASSERT(this->get_id());
@@ -501,7 +503,7 @@ namespace hpx { namespace lcos {
             return **ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         T const* operator->() const
         {
             HPX_ASSERT(this->get_id());
@@ -509,7 +511,7 @@ namespace hpx { namespace lcos {
             return &**ptr;
         }
 
-        /// Access the calling locality's value instance for this dist_object
+        /// Access the calling locality's value instance for this distributed_object
         T* operator->()
         {
             HPX_ASSERT(this->get_id());
@@ -518,25 +520,26 @@ namespace hpx { namespace lcos {
         }
 
         /// Asynchronously returns a future of a copy of the instance of this
-        /// dist_object associated with the given locality index. The locality
-        /// index must be a valid locality ID with this dist_object.
+        /// distributed_object associated with the given locality index. The locality
+        /// index must be a valid locality ID with this distributed_object.
         hpx::future<T> fetch(int idx)
         {
             HPX_ASSERT(this->get_id());
             hpx::id_type lookup = get_basename_helper(idx);
-            typedef typename server::dist_object_part<T&>::fetch_ref_action
-                action_type;
+            typedef
+                typename server::distributed_object_part<T&>::fetch_ref_action
+                    action_type;
             return hpx::async<action_type>(lookup);
         }
         /// \cond NOINTERNAL
     private:
-        mutable std::shared_ptr<server::dist_object_part<T&>> ptr;
+        mutable std::shared_ptr<server::distributed_object_part<T&>> ptr;
         std::string base_;
         void ensure_ptr() const
         {
             if (!ptr)
             {
-                ptr = hpx::get_ptr<server::dist_object_part<T&>>(
+                ptr = hpx::get_ptr<server::distributed_object_part<T&>>(
                     hpx::launch::sync, this->get_id());
             }
         }
@@ -563,4 +566,4 @@ namespace hpx { namespace lcos {
     };
 }}
 
-#endif /*HPX_LCOS_DIST_OBJECT_HPP*/
+#endif /*HPX_LCOS_DISTRIBUTED_OBJECT_HPP*/
