@@ -480,6 +480,63 @@ void test_distributed_object_matrix_mul()
     HPX_TEST((*M3) == here_data_m3);
 }
 
+void run_dist_object_matrix_mo_loc_list(std::vector<size_t> locs)
+{
+    using hpx::lcos::distributed_object;
+    auto loc_it = std::find(locs.begin(), locs.end(), hpx::get_locality_id());
+    if (loc_it == locs.end())
+        return;
+    size_t here = hpx::get_locality_id();
+    std::size_t barrier_rank = std::distance(locs.begin(), loc_it);
+    int val = 42 + static_cast<int>(hpx::get_locality_id());
+    int nums = 5;
+
+    std::vector<int> vec1(nums, val);
+    std::vector<int> vec2(nums, val);
+    std::vector<int> vec3(nums, val);
+
+    typedef hpx::lcos::construction_type c_t;
+    std::string sub_basename =
+        std::to_string(locs[0]) + std::to_string(locs[1]);
+    distributed_object<std::vector<int>, c_t::Meta_Object> VEC1(
+        "vec1_meta_loc_list/" + sub_basename, vec1, locs);
+    distributed_object<std::vector<int>, c_t::Meta_Object> VEC2(
+        "vec2_meta_loc_list" + sub_basename, vec2, locs);
+    distributed_object<std::vector<int>, c_t::Meta_Object> VEC3(
+        "vec3_meta_loc_list" + sub_basename, vec3, locs);
+
+    size_t here_idx = std::find(locs.begin(), locs.end(), here) - locs.begin();
+
+    for (int i = 0; i < nums; i++)
+    {
+        (*VEC3)[i] = (*VEC1)[i] + (*VEC2)[i];
+    }
+
+    for (int i = 0; i < nums; i++)
+    {
+        vec3[i] = vec1[i] + vec2[i];
+    }
+    std::string barrier_name =
+        "/loc_list/barrier" + std::to_string(locs[0]) + std::to_string(locs[1]);
+    hpx::lcos::barrier b(barrier_name, locs, hpx::get_locality_id());
+    b.wait();
+
+    hpx::future<std::vector<int>> k =
+        VEC3.fetch(locs[(here_idx + 1) % locs.size()]);
+    std::cout << "The value of first partition's first element "
+              << "(with meta_object and loc list) is " << k.get()[0]
+              << std::endl;
+    HPX_ASSERT((*VEC3) == vec3);
+}
+
+void test_distributed_object_sub_localities_constructor()
+{
+    using hpx::lcos::distributed_object;
+    std::vector<int> input(10, 1);
+    std::vector<size_t> sub_localities{0};
+    distributed_object<std::vector<int>> vec1("vec1", input, sub_localities);
+}
+
 int hpx_main()
 {
     {
@@ -493,6 +550,9 @@ int hpx_main()
         test_distributed_object_matrix_mul();
         test_distributed_object_ref();
         test_distributed_object_const_ref();
+        //std::vector<size_t> locs0{0, 1};
+        //run_dist_object_matrix_mo_loc_list(locs0);
+        test_distributed_object_sub_localities_constructor();
     }
     hpx::finalize();
     return hpx::util::report_errors();
