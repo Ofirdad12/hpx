@@ -534,7 +534,13 @@ void test_distributed_object_sub_localities_constructor()
     using hpx::lcos::distributed_object;
     std::vector<int> input(10, 1);
     std::vector<size_t> sub_localities{0};
-    distributed_object<std::vector<int>> vec1("vec1", input, sub_localities);
+    if (hpx::get_locality_id() == 0)
+    {
+        distributed_object<std::vector<int>> vec1(
+            "vec1", input, sub_localities);
+    }
+    hpx::lcos::barrier b("/meta/barrier", hpx::find_all_localities().size());
+    b.wait();
 }
 
 int hpx_main()

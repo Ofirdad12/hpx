@@ -221,7 +221,7 @@ namespace hpx { namespace lcos {
             if (hpx::get_locality_id() == root)
             {
                 hpx::register_with_basename(
-                    basename, get_id(), hpx::get_locality_id());
+                    basename, this->get_id(), hpx::get_locality_id());
             }
             meta_object_0 = hpx::find_from_basename(basename, root).get();
         }
@@ -309,6 +309,7 @@ namespace hpx { namespace lcos {
             }
             else
             {
+                cur_locality_in_sub_localities = true;
                 basename_registration_helper(base, num_locs);
             }
         }
@@ -316,6 +317,7 @@ namespace hpx { namespace lcos {
         distributed_object(std::string base, data_type const& data,
             std::vector<size_t> sub_localities)
           : sub_localities_(std::move(sub_localities))
+          , base_type(create_server(data))
           , base_(base)
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
@@ -328,20 +330,21 @@ namespace hpx { namespace lcos {
             {
                 meta_object mo(
                     base, sub_localities_.size(), sub_localities_[0]);
-                locs = mo.registration(get_id());
+                locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
             else
             {
                 if (std::find(sub_localities_.begin(), sub_localities_.end(),
-                        hpx::get_locality_id()) != sub_localities_.end())
+                        static_cast<size_t>(hpx::get_locality_id())) !=
+                    sub_localities_.end())
                 {
-                    base_type(create_server(data));
+                    cur_locality_in_sub_localities = true;
                     basename_registration_helper(base, sub_localities_.size());
                 }
                 else
                 {
-                    distributed_object();
+                    //throw
                 }
             }
         }
@@ -357,6 +360,7 @@ namespace hpx { namespace lcos {
           : base_type(create_server(std::move(data)))
           , base_(base)
         {
+            cur_locality_in_sub_localities = true;
             basename_registration_helper(
                 base, hpx::find_all_localities().size());
         }
@@ -419,6 +423,7 @@ namespace hpx { namespace lcos {
         }
         /// \cond NOINTERNAL
     private:
+        bool cur_locality_in_sub_localities = false;
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
         std::string base_unpacked;
@@ -449,8 +454,12 @@ namespace hpx { namespace lcos {
             std::string base, size_t basename_list_size)
         {
             base_unpacked = base + std::to_string(hpx::get_locality_id());
-            hpx::register_with_basename(
-                base + std::to_string(hpx::get_locality_id()), this->get_id());
+            if (cur_locality_in_sub_localities == true)
+            {
+                hpx::register_with_basename(
+                    base + std::to_string(hpx::get_locality_id()),
+                    this->get_id(), hpx::get_locality_id());
+            }
             basename_list.resize(basename_list_size);
         }
         /// \endcond
@@ -517,13 +526,15 @@ namespace hpx { namespace lcos {
             }
             else
             {
+                cur_locality_in_sub_localities = true;
                 basename_registration_helper(base, localities);
             }
         }
 
         distributed_object(std::string base, data_type data,
             std::vector<size_t> sub_localities)
-          : sub_localities_(std::move(sub_localities))
+          : sub_localities_(sub_localities)
+          , base_type(create_server(data))
           , base_(base)
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
@@ -536,20 +547,21 @@ namespace hpx { namespace lcos {
             {
                 meta_object mo(
                     base, sub_localities_.size(), sub_localities_[0]);
-                locs = mo.registration(get_id());
+                locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
             else
             {
                 if (std::find(sub_localities_.begin(), sub_localities_.end(),
-                        hpx::get_locality_id()) != sub_localities_.end())
+                        static_cast<size_t>(hpx::get_locality_id())) !=
+                    sub_localities_.end())
                 {
-                    base_type(create_server(data));
+                    cur_locality_in_sub_localities = true;
                     basename_registration_helper(base, sub_localities_.size());
                 }
                 else
                 {
-                    distributed_object();
+                    // throw
                 }
             }
         }
@@ -612,6 +624,7 @@ namespace hpx { namespace lcos {
         }
         /// \cond NOINTERNAL
     private:
+        bool cur_locality_in_sub_localities = false;
         mutable std::shared_ptr<server::distributed_object_part<T&>> ptr;
         std::string base_;
         void ensure_ptr() const
@@ -641,9 +654,12 @@ namespace hpx { namespace lcos {
         void basename_registration_helper(
             std::string base, size_t basename_list_size)
         {
-            base_unpacked = base + std::to_string(hpx::get_locality_id());
-            hpx::register_with_basename(
-                base + std::to_string(hpx::get_locality_id()), get_id());
+            if (cur_locality_in_sub_localities == true)
+            {
+                hpx::register_with_basename(
+                    base + std::to_string(hpx::get_locality_id()),
+                    this->get_id(), hpx::get_locality_id());
+            }
             basename_list.resize(basename_list_size);
         }
         /// \endcond
