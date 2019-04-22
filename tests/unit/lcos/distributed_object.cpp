@@ -485,11 +485,14 @@ void test_dist_object_vector_mo_loc_list()
 
     // prepare vector data
     std::vector<int> local(len, here_);
+    std::vector<size_t> sub_localities{0, 1};
 
-    if (num_localities >= 2)
+    if (num_localities >= 2 &&
+        std::find(sub_localities.begin(), sub_localities.end(),
+            static_cast<size_t>(cur_locality)) != sub_localities.end())
     {
         // construct a distributed_object with vector<int> type
-        std::vector<size_t> sub_localities{0, 1};
+
         distributed_object<std::vector<int>, c_t::Meta_Object> LOCAL(
             "lhs_vec", local, sub_localities);
 
@@ -503,7 +506,7 @@ void test_dist_object_vector_mo_loc_list()
         // create a barrier and wait for the distributed object to be
         // constructed in all localities
         hpx::lcos::barrier b_dist_vector("wait_for_construction",
-            hpx::find_all_localities().size(),
+            sub_localities.size(),
             hpx::get_locality_id());
         b_dist_vector.wait();
 
@@ -518,7 +521,8 @@ void test_dist_object_vector_mo_loc_list()
             hpx::get_locality_id());
         wait_for_operation.wait();
 
-        if (cur_locality == 0)
+        std::sort(sub_localities.begin(), sub_localities.end());
+        if (cur_locality == sub_localities[0])
         {
             using hpx::parallel::for_each;
             using hpx::parallel::execution::par;
@@ -526,8 +530,8 @@ void test_dist_object_vector_mo_loc_list()
             std::vector<std::vector<int>> res(num_localities);
             // compute expect result in parallel
             // locality 0 fetchs all values
-            for_each(par, std::begin(sub_localities), std::end(sub_localities),
-                [&](std::uint64_t b) {
+            for_each(par, std::begin(sub_localities) + 1,
+                std::end(sub_localities), [&](std::uint64_t b) {
                     res[b] = LOCAL.fetch(b).get();
                     for (int i = 0; i < len; i++)
                     {
@@ -537,6 +541,9 @@ void test_dist_object_vector_mo_loc_list()
             hpx::wait_all();
         }
     }
+    hpx::lcos::barrier all_blocked_barrier(
+        "all_blocked_barrier", num_localities, hpx::get_locality_id());
+    all_blocked_barrier.wait();
 }
 
 void test_distributed_object_sub_localities_constructor()
