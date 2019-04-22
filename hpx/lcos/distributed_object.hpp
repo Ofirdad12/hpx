@@ -440,12 +440,10 @@ namespace hpx { namespace lcos {
             /// \endcond
         }
         /// \cond NOINTERNAL
-        template <typename Archive, typename Derived, typename Stub>
-        HPX_FORCEINLINE void serialize(Archive& ar,
-            ::hpx::components::client_base<Derived, Stub>& f, unsigned version)
-        {
-            hpx::lcos::detail::serialize_future(ar, f, version);
-        }
+        /// force compilation error if serialization of client occurs
+        template <typename Archive, typename T>
+        HPX_FORCEINLINE void serialize(
+            Archive& ar, base_type& f, unsigned version);
 
     private:
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
@@ -659,6 +657,11 @@ namespace hpx { namespace lcos {
             }
         }
         /// \cond NOINTERNAL
+        /// force compilation error if serialization of client occurs
+        template <typename Archive, typename T>
+        HPX_FORCEINLINE void serialize(
+            Archive& ar, base_type& f, unsigned version);
+
     private:
         mutable std::shared_ptr<server::distributed_object_part<T&>> ptr;
         std::string base_;
