@@ -19,7 +19,6 @@
 #include <hpx/throw_exception.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/bind.hpp>
-
 #include <boost/iterator/counting_iterator.hpp>
 
 #include <algorithm>
@@ -167,7 +166,6 @@ namespace hpx { namespace lcos {
 
         meta_object_server(std::size_t num_locs, std::size_t root)
           : b(num_locs)
-          , root_(root)
         {
             servers_ = std::unordered_map<std::size_t, hpx::id_type>();
             retrieved = false;
@@ -192,11 +190,9 @@ namespace hpx { namespace lcos {
         HPX_DEFINE_COMPONENT_ACTION(meta_object_server, registration);
 
     private:
-        int num_sent;
         hpx::lcos::local::barrier b;
         std::vector<hpx::id_type> servers;
         bool retrieved;
-        std::size_t root_;
         std::unordered_map<std::size_t, hpx::id_type> servers_;
         std::vector<hpx::id_type> servers__;
     };
@@ -441,7 +437,7 @@ namespace hpx { namespace lcos {
         }
         /// \cond NOINTERNAL
         /// force compilation error if serialization of client occurs
-        template <typename Archive, typename T>
+        template <typename Archive, typename Type>
         HPX_FORCEINLINE void serialize(
             Archive& ar, base_type& f, unsigned version);
 
@@ -658,7 +654,7 @@ namespace hpx { namespace lcos {
         }
         /// \cond NOINTERNAL
         /// force compilation error if serialization of client occurs
-        template <typename Archive, typename T>
+        template <typename Archive, typename Type>
         HPX_FORCEINLINE void serialize(
             Archive& ar, base_type& f, unsigned version);
 
@@ -667,9 +663,10 @@ namespace hpx { namespace lcos {
         std::string base_;
         mutable std::vector<size_t> sub_localities_;
 
-        // make sure sub_localities_ is initialized ranging from 0 to num of all localities
-        // when the constructor is called within the context that all localities are provided
-        // so that fetch function can identify the target locality that can be found
+        // make sure sub_localities_ is initialized ranging from 0 to
+        // num of all localities when the constructor is called within
+        // the context that all localities are provided so that fetch
+        // function can identify the target locality that can be found
         // from the sub_localities
         void init_sub_localities()
         {
@@ -707,5 +704,4 @@ namespace hpx { namespace lcos {
         /// \endcond
     };
 }}
-
 #endif /*HPX_LCOS_DISTRIBUTED_OBJECT_HPP*/
