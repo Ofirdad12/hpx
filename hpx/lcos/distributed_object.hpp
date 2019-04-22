@@ -16,9 +16,13 @@
 #include <hpx/pp/cat.hpp>
 #include <hpx/runtime/actions/component_action.hpp>
 #include <hpx/runtime/serialization/unordered_map.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/bind.hpp>
 
+#include <boost/iterator/counting_iterator.hpp>
+
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <memory>
@@ -300,7 +304,9 @@ namespace hpx { namespace lcos {
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
+
             size_t num_locs = hpx::find_all_localities().size();
+            init_sub_localities();
             if (C == construction_type::Meta_Object)
             {
                 meta_object mo(base, num_locs, 0);
@@ -309,11 +315,11 @@ namespace hpx { namespace lcos {
             }
             else
             {
-                cur_locality_in_sub_localities = true;
                 basename_registration_helper(base, num_locs);
             }
         }
 
+        //TODO: doxygen doc
         distributed_object(std::string base, data_type const& data,
             std::vector<size_t> sub_localities)
           : sub_localities_(std::move(sub_localities))
@@ -328,8 +334,7 @@ namespace hpx { namespace lcos {
 
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(
-                    base, sub_localities_.size(), sub_localities_[0]);
+                meta_object mo(base, sub_localities_.size(), sub_localities[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
@@ -339,12 +344,13 @@ namespace hpx { namespace lcos {
                         static_cast<size_t>(hpx::get_locality_id())) !=
                     sub_localities_.end())
                 {
-                    cur_locality_in_sub_localities = true;
                     basename_registration_helper(base, sub_localities_.size());
                 }
                 else
                 {
-                    //throw
+                    HPX_THROW_EXCEPTION(hpx::no_success, "constructor error",
+                        "distributed object is not valid within the given "
+                        "sub-locality");
                 }
             }
         }
@@ -360,7 +366,6 @@ namespace hpx { namespace lcos {
           : base_type(create_server(std::move(data)))
           , base_(base)
         {
-            cur_locality_in_sub_localities = true;
             basename_registration_helper(
                 base, hpx::find_all_localities().size());
         }
@@ -411,23 +416,48 @@ namespace hpx { namespace lcos {
         /// Asynchronously returns a future of a copy of the instance of this
         /// distributed_object associated with the given locality index. The locality
         /// index must be a valid locality ID with this distributed_object.
+        // TODO: write exception description
         hpx::future<data_type> fetch(int idx)
         {
             /// \cond NOINTERNAL
-            HPX_ASSERT(this->get_id());
-            hpx::id_type lookup = get_basename_helper(idx);
-            typedef typename server::distributed_object_part<T>::fetch_action
-                action_type;
-            return hpx::async<action_type>(lookup);
+            if (std::find(sub_localities_.begin(), sub_localities_.end(),
+                    static_cast<size_t>(hpx::get_locality_id())) !=
+                sub_localities_.end())
+            {
+                HPX_ASSERT(this->get_id());
+                hpx::id_type lookup = get_basename_helper(idx);
+                typedef
+                    typename server::distributed_object_part<T>::fetch_action
+                        action_type;
+                return hpx::async<action_type>(lookup);
+            }
+            else
+            {
+                HPX_THROW_EXCEPTION(hpx::no_success,
+                    "fetch error",
+                    "distributed object is not valid within the given "
+                    "locality");
+            }
             /// \endcond
         }
         /// \cond NOINTERNAL
+        template <typename Archive, typename Derived, typename Stub>
+        HPX_FORCEINLINE void serialize(Archive& ar,
+            ::hpx::components::client_base<Derived, Stub>& f, unsigned version)
+        {
+            hpx::lcos::detail::serialize_future(ar, f, version);
+        }
+
     private:
-        bool cur_locality_in_sub_localities = false;
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
-        std::string base_unpacked;
         std::vector<size_t> sub_localities_;
+        void init_sub_localities()
+        {
+            sub_localities_.resize(hpx::find_all_localities().size());
+            std::generate(sub_localities_.begin(), sub_localities_.end(),
+                [n = 0]() mutable { return n++; });
+        }
         void ensure_ptr() const
         {
             if (!ptr)
@@ -453,13 +483,9 @@ namespace hpx { namespace lcos {
         void basename_registration_helper(
             std::string base, size_t basename_list_size)
         {
-            base_unpacked = base + std::to_string(hpx::get_locality_id());
-            if (cur_locality_in_sub_localities == true)
-            {
-                hpx::register_with_basename(
-                    base + std::to_string(hpx::get_locality_id()),
-                    this->get_id(), hpx::get_locality_id());
-            }
+            hpx::register_with_basename(
+                base + std::to_string(hpx::get_locality_id()), this->get_id(),
+                hpx::get_locality_id());
             basename_list.resize(basename_list_size);
         }
         /// \endcond
@@ -517,7 +543,9 @@ namespace hpx { namespace lcos {
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
+
             size_t localities = hpx::find_all_localities().size();
+
             if (C == construction_type::Meta_Object)
             {
                 meta_object mo(base, localities, 0);
@@ -526,14 +554,14 @@ namespace hpx { namespace lcos {
             }
             else
             {
-                cur_locality_in_sub_localities = true;
                 basename_registration_helper(base, localities);
             }
         }
 
+        // TODO: Doxgen doc
         distributed_object(std::string base, data_type data,
             std::vector<size_t> sub_localities)
-          : sub_localities_(sub_localities)
+          : sub_localities_(std::move(sub_localities))
           , base_type(create_server(data))
           , base_(base)
         {
@@ -542,11 +570,10 @@ namespace hpx { namespace lcos {
             HPX_ASSERT(sub_localities_.size() > 0);
 
             std::sort(sub_localities_.begin(), sub_localities_.end());
-
+            init_sub_localities();
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(
-                    base, sub_localities_.size(), sub_localities_[0]);
+                meta_object mo(base, sub_localities_.size(), sub_localities[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
@@ -556,12 +583,13 @@ namespace hpx { namespace lcos {
                         static_cast<size_t>(hpx::get_locality_id())) !=
                     sub_localities_.end())
                 {
-                    cur_locality_in_sub_localities = true;
                     basename_registration_helper(base, sub_localities_.size());
                 }
                 else
                 {
-                    // throw
+                    HPX_THROW_EXCEPTION(hpx::no_success, "constructor error",
+                        "distributed object is not valid within the given "
+                        "sub-locality");
                 }
             }
         }
@@ -613,20 +641,42 @@ namespace hpx { namespace lcos {
         /// Asynchronously returns a future of a copy of the instance of this
         /// distributed_object associated with the given locality index. The locality
         /// index must be a valid locality ID with this distributed_object.
+        // TODO: write exception description
         hpx::future<T> fetch(int idx)
         {
-            HPX_ASSERT(this->get_id());
-            hpx::id_type lookup = get_basename_helper(idx);
-            typedef
-                typename server::distributed_object_part<T&>::fetch_ref_action
-                    action_type;
-            return hpx::async<action_type>(lookup);
+            if (std::find(sub_localities_.begin(), sub_localities_.end(),
+                    static_cast<size_t>(hpx::get_locality_id())) !=
+                sub_localities_.end())
+            {
+                HPX_ASSERT(this->get_id());
+                hpx::id_type lookup = get_basename_helper(idx);
+                typedef typename server::distributed_object_part<
+                    T&>::fetch_ref_action action_type;
+                return hpx::async<action_type>(lookup);
+            }
+            else
+            {
+                HPX_THROW_EXCEPTION(hpx::no_success, "fetch error",
+                    "distributed object is not valid within the given "
+                    "locality");
+            }
         }
         /// \cond NOINTERNAL
     private:
-        bool cur_locality_in_sub_localities = false;
         mutable std::shared_ptr<server::distributed_object_part<T&>> ptr;
         std::string base_;
+        mutable std::vector<size_t> sub_localities_;
+
+        // make sure sub_localities_ is initialized ranging from 0 to num of all localities
+        // when the constructor is called within the context that all localities are provided
+        // so that fetch function can identify the target locality that can be found
+        // from the sub_localities
+        void init_sub_localities()
+        {
+            sub_localities_.resize(hpx::find_all_localities().size());
+            std::generate(sub_localities_.begin(), sub_localities_.end(),
+                [n = 0]() mutable { return n++; });
+        }
         void ensure_ptr() const
         {
             if (!ptr)
@@ -638,9 +688,7 @@ namespace hpx { namespace lcos {
 
     private:
         std::vector<hpx::id_type> basename_list;
-        std::unordered_map<std::size_t, hpx::id_type> locs;
-        std::string base_unpacked;
-        std::vector<size_t> sub_localities_;
+        std::unordered_map<std::size_t, hpx::id_type> locs;        
         hpx::id_type get_basename_helper(int idx)
         {
             if (!locs[idx])
@@ -654,12 +702,9 @@ namespace hpx { namespace lcos {
         void basename_registration_helper(
             std::string base, size_t basename_list_size)
         {
-            if (cur_locality_in_sub_localities == true)
-            {
-                hpx::register_with_basename(
-                    base + std::to_string(hpx::get_locality_id()),
-                    this->get_id(), hpx::get_locality_id());
-            }
+            hpx::register_with_basename(
+                base + std::to_string(hpx::get_locality_id()), this->get_id(),
+                hpx::get_locality_id());
             basename_list.resize(basename_list_size);
         }
         /// \endcond
