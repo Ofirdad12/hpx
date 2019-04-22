@@ -330,7 +330,7 @@ namespace hpx { namespace lcos {
 
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(base, sub_localities_.size(), sub_localities[0]);
+                meta_object mo(base, sub_localities_.size(), sub_localities_[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
@@ -567,7 +567,7 @@ namespace hpx { namespace lcos {
 
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(base, sub_localities_.size(), sub_localities[0]);
+                meta_object mo(base, sub_localities_.size(), sub_localities_[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }

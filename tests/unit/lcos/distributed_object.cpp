@@ -70,7 +70,7 @@ void test_distributed_object_int_reduce_to_locality_0()
     // User needs to provide the distributed object with a unique basename
     // and data for construction. The unique basename string enables HPX
     // register and retrive the distributed object.
-    distributed_object<int> dist_int("a_unique_name_string", cur_locality + 42);
+    distributed_object<int> dist_int("a_unique_name_string", cur_locality);
 
     // create a barrier and wait for the distributed object to be constructed in
     // all localities
@@ -83,7 +83,7 @@ void test_distributed_object_int_reduce_to_locality_0()
     // distributed object associated with the given locality
     if (hpx::get_locality_id() >= 2)
     {
-        HPX_TEST_EQ(dist_int.fetch(1).get(), 43);
+        HPX_TEST_EQ(dist_int.fetch(1).get(), 1);
     }
 
     if (cur_locality == 0 && num_localities >= 2)
@@ -159,18 +159,15 @@ void test_distributed_object_vector_elem_wise_add()
         std::vector<std::vector<int>> res(num_localities);
         // compute expect result in parallel
         // locality 0 fetchs all values
-        for_each(par, std::begin(range), std::end(range),
-            [&](std::uint64_t b) {
+        for_each(par, std::begin(range), std::end(range), [&](std::uint64_t b) {
             res[b] = LOCAL.fetch(b).get();
             for (int i = 0; i < len; i++)
             {
                 HPX_TEST_EQ(res[b][i], (*LOCAL)[i] + b);
             }
-
         });
         hpx::wait_all();
     }
-
 }
 
 // element-wise addition for vector<vector<double>> for distributed_object
@@ -317,7 +314,8 @@ void test_distributed_object_ref()
     int val_update = 42;
     myVectorInt vec1(n, val);
     distributed_object<myVectorInt&> dist_vec("vec1", vec1);
-
+    hpx::lcos::barrier b("/meta/barrier", hpx::find_all_localities().size());
+    b.wait();
     // The update/change to the exsiting/referring object
     // will reflect the change to the distributed object
     vec1[2] = val_update;
@@ -330,11 +328,15 @@ void test_distributed_object_ref()
 void test_distributed_object_const_ref()
 {
     using hpx::lcos::distributed_object;
-    size_t n = 10;
-    int val = 2;
+    int n = 10;
+    double val = 42.0;
 
     myVectorDoubleConst vec1(n, val);
     distributed_object<myVectorDoubleConstRef> dist_vec("vec1", vec1);
+    hpx::lcos::barrier wait_for_operation("wait_for_operation",
+        hpx::find_all_localities().size(),
+        hpx::get_locality_id());
+    wait_for_operation.wait();
 }
 
 // simple matrix multiplication example
@@ -470,53 +472,71 @@ void test_distributed_object_matrix_mul()
     HPX_TEST((*M3) == here_data_m3);
 }
 
-void run_dist_object_matrix_mo_loc_list(std::vector<size_t> locs)
+void test_dist_object_vector_mo_loc_list()
 {
-    using hpx::lcos::distributed_object;
-    auto loc_it = std::find(locs.begin(), locs.end(), hpx::get_locality_id());
-    if (loc_it == locs.end())
-        return;
-    size_t here = hpx::get_locality_id();
-    std::size_t barrier_rank = std::distance(locs.begin(), loc_it);
-    int val = 42 + static_cast<int>(hpx::get_locality_id());
-    int nums = 5;
-
-    std::vector<int> vec1(nums, val);
-    std::vector<int> vec2(nums, val);
-    std::vector<int> vec3(nums, val);
-
     typedef hpx::lcos::construction_type c_t;
-    std::string sub_basename =
-        std::to_string(locs[0]) + std::to_string(locs[1]);
-    distributed_object<std::vector<int>, c_t::Meta_Object> VEC1(
-        "vec1_meta_loc_list/" + sub_basename, vec1, locs);
-    distributed_object<std::vector<int>, c_t::Meta_Object> VEC2(
-        "vec2_meta_loc_list" + sub_basename, vec2, locs);
-    distributed_object<std::vector<int>, c_t::Meta_Object> VEC3(
-        "vec3_meta_loc_list" + sub_basename, vec3, locs);
+    using hpx::lcos::distributed_object;
+    int num_localities = hpx::find_all_localities().size();
+    int cur_locality = hpx::get_locality_id();
 
-    size_t here_idx = std::find(locs.begin(), locs.end(), here) - locs.begin();
+    // define vector based on the locality that it is running
+    int here_ = 42 + static_cast<int>(hpx::get_locality_id());
+    int len = 10;
 
-    for (int i = 0; i < nums; i++)
+    // prepare vector data
+    std::vector<int> local(len, here_);
+
+    if (num_localities >= 2)
     {
-        (*VEC3)[i] = (*VEC1)[i] + (*VEC2)[i];
-    }
+        // construct a distributed_object with vector<int> type
+        std::vector<size_t> sub_localities{0, 1};
+        distributed_object<std::vector<int>, c_t::Meta_Object> LOCAL(
+            "lhs_vec", local, sub_localities);
 
-    for (int i = 0; i < nums; i++)
-    {
-        vec3[i] = vec1[i] + vec2[i];
-    }
-    std::string barrier_name =
-        "/loc_list/barrier" + std::to_string(locs[0]) + std::to_string(locs[1]);
-    hpx::lcos::barrier b(barrier_name, locs, hpx::get_locality_id());
-    b.wait();
+        // testing -> operator
+        HPX_TEST_EQ(LOCAL->size(), static_cast<size_t>(len));
 
-    hpx::future<std::vector<int>> k =
-        VEC3.fetch(locs[(here_idx + 1) % locs.size()]);
-    std::cout << "The value of first partition's first element "
-              << "(with meta_object and loc list) is " << k.get()[0]
-              << std::endl;
-    HPX_ASSERT((*VEC3) == vec3);
+        // testing dist_object and its vector underneath
+        // testing * operator
+        HPX_TEST((*LOCAL) == local);
+
+        // create a barrier and wait for the distributed object to be
+        // constructed in all localities
+        hpx::lcos::barrier b_dist_vector("wait_for_construction",
+            hpx::find_all_localities().size(),
+            hpx::get_locality_id());
+        b_dist_vector.wait();
+
+        // perform element-wise addition between distributed_objects
+        for (int i = 0; i < len; i++)
+        {
+            (*LOCAL)[i] += 1;
+        }
+
+        hpx::lcos::barrier wait_for_operation("wait_for_operation",
+            hpx::find_all_localities().size(),
+            hpx::get_locality_id());
+        wait_for_operation.wait();
+
+        if (cur_locality == 0)
+        {
+            using hpx::parallel::for_each;
+            using hpx::parallel::execution::par;
+
+            std::vector<std::vector<int>> res(num_localities);
+            // compute expect result in parallel
+            // locality 0 fetchs all values
+            for_each(par, std::begin(sub_localities), std::end(sub_localities),
+                [&](std::uint64_t b) {
+                    res[b] = LOCAL.fetch(b).get();
+                    for (int i = 0; i < len; i++)
+                    {
+                        HPX_TEST_EQ(res[b][i], (*LOCAL)[i] + b);
+                    }
+                });
+            hpx::wait_all();
+        }
+    }
 }
 
 void test_distributed_object_sub_localities_constructor()
@@ -529,7 +549,8 @@ void test_distributed_object_sub_localities_constructor()
         distributed_object<std::vector<int>> vec1(
             "vec1", input, sub_localities);
     }
-    hpx::lcos::barrier b("wait_for_construction", hpx::find_all_localities().size());
+    hpx::lcos::barrier b(
+        "wait_for_construction", hpx::find_all_localities().size());
     b.wait();
 }
 
@@ -544,8 +565,7 @@ int hpx_main()
         test_distributed_object_matrix_mul();
         test_distributed_object_ref();
         test_distributed_object_const_ref();
-        //std::vector<size_t> locs0{0, 1};
-        //run_dist_object_matrix_mo_loc_list(locs0);
+        test_dist_object_vector_mo_loc_list();
         test_distributed_object_sub_localities_constructor();
     }
     hpx::finalize();
