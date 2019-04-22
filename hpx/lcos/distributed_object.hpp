@@ -304,7 +304,7 @@ namespace hpx { namespace lcos {
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
-
+            ensure_ptr();
             size_t num_locs = hpx::find_all_localities().size();
             init_sub_localities();
             if (C == construction_type::Meta_Object)
@@ -329,7 +329,7 @@ namespace hpx { namespace lcos {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
             HPX_ASSERT(sub_localities_.size() > 0);
-
+            ensure_ptr();
             std::sort(sub_localities_.begin(), sub_localities_.end());
 
             if (C == construction_type::Meta_Object)
@@ -366,15 +366,18 @@ namespace hpx { namespace lcos {
           : base_type(create_server(std::move(data)))
           , base_(base)
         {
+            ensure_ptr();
             basename_registration_helper(
                 base, hpx::find_all_localities().size());
+            init_sub_localities();
         }
         /// \cond NOINTERNAL
+        /// generate boilerplate code for the client
         distributed_object(hpx::future<hpx::id_type>&& id)
           : base_type(std::move(id))
         {
         }
-
+        /// generate boilerplate code for the client
         distributed_object(hpx::id_type&& id)
           : base_type(std::move(id))
         {
@@ -385,7 +388,6 @@ namespace hpx { namespace lcos {
         data_type const& operator*() const
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return **ptr;
         }
 
@@ -393,7 +395,6 @@ namespace hpx { namespace lcos {
         data_type& operator*()
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return **ptr;
         }
 
@@ -401,7 +402,6 @@ namespace hpx { namespace lcos {
         data_type const* operator->() const
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return &**ptr;
         }
 
@@ -409,7 +409,6 @@ namespace hpx { namespace lcos {
         data_type* operator->()
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return &**ptr;
         }
 
@@ -452,6 +451,10 @@ namespace hpx { namespace lcos {
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
         std::vector<size_t> sub_localities_;
+        // make sure sub_localities_ is initialized ranging from 0 to num of all localities
+        // when the constructor is called within the context that all localities are provided
+        // so that fetch function can identify the target locality that can be found
+        // from the sub_localities
         void init_sub_localities()
         {
             sub_localities_.resize(hpx::find_all_localities().size());
@@ -460,11 +463,8 @@ namespace hpx { namespace lcos {
         }
         void ensure_ptr() const
         {
-            if (!ptr)
-            {
-                ptr = hpx::get_ptr<server::distributed_object_part<T>>(
-                    hpx::launch::sync, this->get_id());
-            }
+            ptr = hpx::get_ptr<server::distributed_object_part<T>>(
+                hpx::launch::sync, this->get_id());
         }
 
     private:
@@ -543,9 +543,9 @@ namespace hpx { namespace lcos {
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
-
+            ensure_ptr();
             size_t localities = hpx::find_all_localities().size();
-
+            init_sub_localities();
             if (C == construction_type::Meta_Object)
             {
                 meta_object mo(base, localities, 0);
@@ -568,9 +568,9 @@ namespace hpx { namespace lcos {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
             HPX_ASSERT(sub_localities_.size() > 0);
-
+            ensure_ptr();
             std::sort(sub_localities_.begin(), sub_localities_.end());
-            init_sub_localities();
+
             if (C == construction_type::Meta_Object)
             {
                 meta_object mo(base, sub_localities_.size(), sub_localities[0]);
@@ -595,11 +595,12 @@ namespace hpx { namespace lcos {
         }
 
         /// \cond NOINTERNAL
+        /// generate boilerplate code for the client
         distributed_object(hpx::future<hpx::id_type>&& id)
           : base_type(std::move(id))
         {
         }
-
+        /// generate boilerplate code for the client
         distributed_object(hpx::id_type&& id)
           : base_type(std::move(id))
         {
@@ -610,7 +611,6 @@ namespace hpx { namespace lcos {
         data_type const operator*() const
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return **ptr;
         }
 
@@ -618,7 +618,6 @@ namespace hpx { namespace lcos {
         data_type operator*()
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return **ptr;
         }
 
@@ -626,7 +625,6 @@ namespace hpx { namespace lcos {
         T const* operator->() const
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return &**ptr;
         }
 
@@ -634,7 +632,6 @@ namespace hpx { namespace lcos {
         T* operator->()
         {
             HPX_ASSERT(this->get_id());
-            ensure_ptr();
             return &**ptr;
         }
 
@@ -679,16 +676,13 @@ namespace hpx { namespace lcos {
         }
         void ensure_ptr() const
         {
-            if (!ptr)
-            {
-                ptr = hpx::get_ptr<server::distributed_object_part<T&>>(
-                    hpx::launch::sync, this->get_id());
-            }
+            ptr = hpx::get_ptr<server::distributed_object_part<T&>>(
+                hpx::launch::sync, this->get_id());
         }
 
     private:
         std::vector<hpx::id_type> basename_list;
-        std::unordered_map<std::size_t, hpx::id_type> locs;        
+        std::unordered_map<std::size_t, hpx::id_type> locs;
         hpx::id_type get_basename_helper(int idx)
         {
             if (!locs[idx])
