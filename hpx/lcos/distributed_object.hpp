@@ -318,7 +318,7 @@ namespace hpx { namespace lcos {
         //TODO: doxygen doc
         distributed_object(std::string base, data_type const& data,
             std::vector<size_t> sub_localities)
-          : sub_localities_(std::move(sub_localities))
+          : sub_localities_(sub_localities)
           , base_type(create_server(data))
           , base_(base)
         {
@@ -445,10 +445,11 @@ namespace hpx { namespace lcos {
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
         std::vector<size_t> sub_localities_;
-        // make sure sub_localities_ is initialized ranging from 0 to num of all localities
-        // when the constructor is called within the context that all localities are provided
-        // so that fetch function can identify the target locality that can be found
-        // from the sub_localities
+        // make sure sub_localities_ is initialized ranging from 0 to num of
+        // all localities when the constructor is called within the context
+        // that all localities are provided so that fetch function can
+        // identify the target locality that can be found from the
+        // sub_localities
         void init_sub_localities()
         {
             sub_localities_.resize(hpx::find_all_localities().size());
@@ -555,7 +556,7 @@ namespace hpx { namespace lcos {
         // TODO: Doxgen doc
         distributed_object(std::string base, data_type data,
             std::vector<size_t> sub_localities)
-          : sub_localities_(std::move(sub_localities))
+          : sub_localities_(sub_localities)
           , base_type(create_server(data))
           , base_(base)
         {

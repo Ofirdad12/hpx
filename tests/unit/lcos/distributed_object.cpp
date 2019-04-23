@@ -472,12 +472,12 @@ void test_distributed_object_matrix_mul()
     HPX_TEST((*M3) == here_data_m3);
 }
 
-void test_dist_object_vector_mo_loc_list()
+void test_dist_object_vector_mo_sub_localities_constructor()
 {
     typedef hpx::lcos::construction_type c_t;
     using hpx::lcos::distributed_object;
     int num_localities = hpx::find_all_localities().size();
-    int cur_locality = hpx::get_locality_id();
+    size_t cur_locality = static_cast<size_t>(hpx::get_locality_id());
 
     // define vector based on the locality that it is running
     int here_ = 42 + static_cast<int>(hpx::get_locality_id());
@@ -517,7 +517,7 @@ void test_dist_object_vector_mo_loc_list()
         }
 
         hpx::lcos::barrier wait_for_operation("wait_for_operation",
-            hpx::find_all_localities().size(),
+            sub_localities.size(),
             hpx::get_locality_id());
         wait_for_operation.wait();
 
@@ -535,7 +535,7 @@ void test_dist_object_vector_mo_loc_list()
                     res[b] = LOCAL.fetch(b).get();
                     for (int i = 0; i < len; i++)
                     {
-                        HPX_TEST_EQ(res[b][i], (*LOCAL)[i] + b);
+                        HPX_TEST_EQ(res[b][i], static_cast<int>((*LOCAL)[i] + b));
                     }
                 });
             hpx::wait_all();
@@ -572,7 +572,7 @@ int hpx_main()
         test_distributed_object_matrix_mul();
         test_distributed_object_ref();
         test_distributed_object_const_ref();
-        test_dist_object_vector_mo_loc_list();
+        test_dist_object_vector_mo_sub_localities_constructor();
         test_distributed_object_sub_localities_constructor();
     }
     hpx::finalize();
