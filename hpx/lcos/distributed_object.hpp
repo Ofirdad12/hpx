@@ -275,6 +275,19 @@ namespace hpx { namespace lcos {
             return hpx::local_new<server::distributed_object_part<T>>(
                 std::forward<Arg>(value));
         }
+        // make sure sub_localities_ is initialized ranging from 0 to
+        // num of all localities when the constructor is called within
+        // the context that all localities are provided so that fetch
+        // function can identify the target locality that can be found
+        // from the sub_localities
+        static std::vector<size_t> all_localities()
+        {
+            std::vector<size_t> all_localities_tmp;
+            all_localities_tmp.resize(hpx::find_all_localities().size());
+            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
+                [n = 0]() mutable { return n++; });
+            return all_localities_tmp;
+        }
 
     public:
         /// Creates a distributed_object in every locality
@@ -351,18 +364,6 @@ namespace hpx { namespace lcos {
                 }
             }
         }
-
-    private:
-        static std::vector<size_t> all_localities()
-        {
-            std::vector<size_t> all_localities_tmp;
-            all_localities_tmp.resize(hpx::find_all_localities().size());
-            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
-                [n = 0]() mutable { return n++; });
-            return all_localities_tmp;
-        }
-
-    public:
         /// Creates a distributed_object in every locality with a given base_name string,
         /// data. The construction_type in the template parameter is set to
         /// All_to_All option by default.
@@ -370,14 +371,15 @@ namespace hpx { namespace lcos {
         /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
         /// \param data The data of the type T of the distributed_object
-        distributed_object(std::string base, data_type&& data)
-          : base_type(create_server(std::move(data)))
+        distributed_object(std::string base, data_type&& data,
+            std::vector<size_t> sub_localities = all_localities())
+          : sub_localities_(sub_localities)
+          , base_type(create_server(std::move(data)))
           , base_(base)
         {
             ensure_ptr();
             basename_registration_helper(
                 base, hpx::find_all_localities().size());
-            init_sub_localities();
         }
         /// \cond NOINTERNAL
         /// generate boilerplate code for the client
@@ -457,17 +459,6 @@ namespace hpx { namespace lcos {
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
         std::string base_;
         std::vector<size_t> sub_localities_;
-        // make sure sub_localities_ is initialized ranging from 0 to num of
-        // all localities when the constructor is called within the context
-        // that all localities are provided so that fetch function can
-        // identify the target locality that can be found from the
-        // sub_localities
-        void init_sub_localities()
-        {
-            sub_localities_.resize(hpx::find_all_localities().size());
-            std::generate(sub_localities_.begin(), sub_localities_.end(),
-                [n = 0]() mutable { return n++; });
-        }
         void ensure_ptr() const
         {
             ptr = hpx::get_ptr<server::distributed_object_part<T>>(
@@ -522,6 +513,19 @@ namespace hpx { namespace lcos {
         static hpx::future<hpx::id_type> create_server(Arg& value)
         {
             return hpx::local_new<server::distributed_object_part<T&>>(value);
+        }
+        // make sure sub_localities_ is initialized ranging from 0 to
+        // num of all localities when the constructor is called within
+        // the context that all localities are provided so that fetch
+        // function can identify the target locality that can be found
+        // from the sub_localities
+        static std::vector<size_t> all_localities()
+        {
+            std::vector<size_t> all_localities_tmp;
+            all_localities_tmp.resize(hpx::find_all_localities().size());
+            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
+                [n = 0]() mutable { return n++; });
+            return all_localities_tmp;
         }
         /// \endcond
     public:
@@ -602,17 +606,6 @@ namespace hpx { namespace lcos {
             }
         }
 
-    private:
-        static std::vector<size_t> all_localities()
-        {
-            std::vector<size_t> all_localities_tmp;
-            all_localities_tmp.resize(hpx::find_all_localities().size());
-            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
-                [n = 0]() mutable { return n++; });
-            return all_localities_tmp;
-        }
-
-    public:
         /// \cond NOINTERNAL
         /// generate boilerplate code for the client
         distributed_object(hpx::future<hpx::id_type>&& id)
@@ -688,17 +681,6 @@ namespace hpx { namespace lcos {
         std::string base_;
         mutable std::vector<size_t> sub_localities_;
 
-        // make sure sub_localities_ is initialized ranging from 0 to
-        // num of all localities when the constructor is called within
-        // the context that all localities are provided so that fetch
-        // function can identify the target locality that can be found
-        // from the sub_localities
-        void init_sub_localities()
-        {
-            sub_localities_.resize(hpx::find_all_localities().size());
-            std::generate(sub_localities_.begin(), sub_localities_.end(),
-                [n = 0]() mutable { return n++; });
-        }
         void ensure_ptr() const
         {
             ptr = hpx::get_ptr<server::distributed_object_part<T&>>(
