@@ -294,30 +294,30 @@ namespace hpx { namespace lcos {
         /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
         /// \param data The data of the type T of the distributed_object
-        distributed_object(std::string base, data_type const& data)
-          : base_type(create_server(data))
-          , base_(base)
-        {
-            HPX_ASSERT(C == construction_type::All_to_All ||
-                C == construction_type::Meta_Object);
-            ensure_ptr();
-            size_t num_locs = hpx::find_all_localities().size();
-            init_sub_localities();
-            if (C == construction_type::Meta_Object)
-            {
-                meta_object mo(base, num_locs, 0);
-                locs = mo.registration(this->get_id());
-                basename_registration_helper(base, num_locs);
-            }
-            else
-            {
-                basename_registration_helper(base, num_locs);
-            }
-        }
+        //distributed_object(std::string base, data_type const& data)
+        //  : base_type(create_server(data))
+        //  , base_(base)
+        //{
+        //    HPX_ASSERT(C == construction_type::All_to_All ||
+        //        C == construction_type::Meta_Object);
+        //    ensure_ptr();
+        //    size_t num_locs = hpx::find_all_localities().size();
+        //    init_sub_localities();
+        //    if (C == construction_type::Meta_Object)
+        //    {
+        //        meta_object mo(base, num_locs, 0);
+        //        locs = mo.registration(this->get_id());
+        //        basename_registration_helper(base, num_locs);
+        //    }
+        //    else
+        //    {
+        //        basename_registration_helper(base, num_locs);
+        //    }
+        //}
 
         //TODO: doxygen doc
         distributed_object(std::string base, data_type const& data,
-            std::vector<size_t> sub_localities)
+            std::vector<size_t> sub_localities = all_localities())
           : sub_localities_(sub_localities)
           , base_type(create_server(data))
           , base_(base)
@@ -330,7 +330,8 @@ namespace hpx { namespace lcos {
 
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(base, sub_localities_.size(), sub_localities_[0]);
+                meta_object mo(
+                    base, sub_localities_.size(), sub_localities_[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
@@ -351,6 +352,17 @@ namespace hpx { namespace lcos {
             }
         }
 
+    private:
+        static std::vector<size_t> all_localities()
+        {
+            std::vector<size_t> all_localities_tmp;
+            all_localities_tmp.resize(hpx::find_all_localities().size());
+            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
+                [n = 0]() mutable { return n++; });
+            return all_localities_tmp;
+        }
+
+    public:
         /// Creates a distributed_object in every locality with a given base_name string,
         /// data. The construction_type in the template parameter is set to
         /// All_to_All option by default.
@@ -439,7 +451,7 @@ namespace hpx { namespace lcos {
         /// force compilation error if serialization of client occurs
         template <typename Archive, typename Type>
         HPX_FORCEINLINE void serialize(
-            Archive& ar, base_type& f, unsigned version);
+            Archive& ar, base_type& f, unsigned version) = delete;
 
     private:
         mutable std::shared_ptr<server::distributed_object_part<T>> ptr;
@@ -532,7 +544,7 @@ namespace hpx { namespace lcos {
         /// \param base_name The name of the distributed_object, which should be a unique
         /// string across the localities
         /// \param data The data of the type T of the distributed_object
-        distributed_object(std::string base, data_type data)
+        /*       distributed_object(std::string base, data_type data)
           : base_type(create_server(data))
           , base_(base)
         {
@@ -551,11 +563,11 @@ namespace hpx { namespace lcos {
             {
                 basename_registration_helper(base, localities);
             }
-        }
+        }*/
 
         // TODO: Doxgen doc
         distributed_object(std::string base, data_type data,
-            std::vector<size_t> sub_localities)
+            std::vector<size_t> sub_localities = all_localities())
           : sub_localities_(sub_localities)
           , base_type(create_server(data))
           , base_(base)
@@ -568,7 +580,8 @@ namespace hpx { namespace lcos {
 
             if (C == construction_type::Meta_Object)
             {
-                meta_object mo(base, sub_localities_.size(), sub_localities_[0]);
+                meta_object mo(
+                    base, sub_localities_.size(), sub_localities_[0]);
                 locs = mo.registration(this->get_id());
                 basename_registration_helper(base, sub_localities_.size());
             }
@@ -589,6 +602,17 @@ namespace hpx { namespace lcos {
             }
         }
 
+    private:
+        static std::vector<size_t> all_localities()
+        {
+            std::vector<size_t> all_localities_tmp;
+            all_localities_tmp.resize(hpx::find_all_localities().size());
+            std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
+                [n = 0]() mutable { return n++; });
+            return all_localities_tmp;
+        }
+
+    public:
         /// \cond NOINTERNAL
         /// generate boilerplate code for the client
         distributed_object(hpx::future<hpx::id_type>&& id)
@@ -657,7 +681,7 @@ namespace hpx { namespace lcos {
         /// force compilation error if serialization of client occurs
         template <typename Archive, typename Type>
         HPX_FORCEINLINE void serialize(
-            Archive& ar, base_type& f, unsigned version);
+            Archive& ar, base_type& f, unsigned version) = delete;
 
     private:
         mutable std::shared_ptr<server::distributed_object_part<T&>> ptr;
