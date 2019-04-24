@@ -318,9 +318,9 @@ namespace hpx { namespace lcos {
         //TODO: doxygen doc
         distributed_object(std::string base, data_type const& data,
             std::vector<size_t> sub_localities = all_localities())
-          : sub_localities_(std::move(sub_localities))
+          : base_(base)
           , base_type(create_server(data))
-          , base_(base)
+          , sub_localities_(std::move(sub_localities))
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
@@ -360,9 +360,9 @@ namespace hpx { namespace lcos {
         /// \param data The data of the type T of the distributed_object
         distributed_object(std::string base, data_type&& data,
             std::vector<size_t> sub_localities = all_localities())
-          : sub_localities_(std::move(sub_localities))
+          : base_(base)
           , base_type(create_server(std::move(data)))
-          , base_(base)
+          , sub_localities_(std::move(sub_localities))
         {
             ensure_ptr();
             basename_registration_helper(
@@ -463,7 +463,7 @@ namespace hpx { namespace lcos {
             all_localities_tmp.resize(hpx::find_all_localities().size());
             std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
                 [n = 0]() mutable { return n++; });
-            return all_localities_tmp;
+            return std::move(all_localities_tmp);
         }
 
     private:
@@ -560,9 +560,10 @@ namespace hpx { namespace lcos {
         // TODO: Doxgen doc
         distributed_object(std::string base, data_type data,
             std::vector<size_t> sub_localities = all_localities())
-          : sub_localities_(std::move(sub_localities))
+          : base_(base)
           , base_type(create_server(data))
-          , base_(base)
+          , sub_localities_(std::move(sub_localities))
+
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
@@ -680,7 +681,7 @@ namespace hpx { namespace lcos {
             all_localities_tmp.resize(hpx::find_all_localities().size());
             std::generate(all_localities_tmp.begin(), all_localities_tmp.end(),
                 [n = 0]() mutable { return n++; });
-            return all_localities_tmp;
+            return std::move(all_localities_tmp);
         }
 
         void ensure_ptr() const
