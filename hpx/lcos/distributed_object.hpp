@@ -319,8 +319,8 @@ namespace hpx { namespace lcos {
         distributed_object(std::string base, data_type const& data,
             std::vector<size_t> sub_localities = all_localities())
           : base_(base)
-          , base_type(create_server(data))
           , sub_localities_(std::move(sub_localities))
+          , base_type(create_server(data))
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
@@ -361,8 +361,8 @@ namespace hpx { namespace lcos {
         distributed_object(std::string base, data_type&& data,
             std::vector<size_t> sub_localities = all_localities())
           : base_(base)
-          , base_type(create_server(std::move(data)))
           , sub_localities_(std::move(sub_localities))
+          , base_type(create_server(std::move(data)))
         {
             ensure_ptr();
             basename_registration_helper(
@@ -561,9 +561,8 @@ namespace hpx { namespace lcos {
         distributed_object(std::string base, data_type data,
             std::vector<size_t> sub_localities = all_localities())
           : base_(base)
-          , base_type(create_server(data))
           , sub_localities_(std::move(sub_localities))
-
+          , base_type(create_server(data))
         {
             HPX_ASSERT(C == construction_type::All_to_All ||
                 C == construction_type::Meta_Object);
